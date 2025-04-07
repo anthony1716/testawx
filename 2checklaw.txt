@@ -1,0 +1,38 @@
+# Connect to Azure if needed
+Connect-AzAccount
+
+# Set the subscription you want to scan
+Set-AzContext -SubscriptionId "<your-subscription-id>"
+
+# Define your LAW Resource ID (the target you're investigating)
+$targetLaw = "/subscriptions/<law-sub-id>/resourceGroups/<law-rg>/providers/Microsoft.OperationalInsights/workspaces/<your-law-name>"
+
+# Get all resources in the subscription
+$resources = Get-AzResource
+
+# Empty list to collect findings
+$diagSettingsToLaw = @()
+
+# Scan all resources
+foreach ($resource in $resources) {
+    try {
+        $diag = Get-AzDiagnosticSetting -ResourceId $resource.ResourceId -ErrorAction SilentlyContinue
+        if ($diag -and $diag.WorkspaceId -eq $targetLaw) {
+            $diagSettingsToLaw += [PSCustomObject]@{
+                ResourceName        = $resource.Name
+                ResourceType        = $resource.ResourceType
+                ResourceGroupName   = $resource.ResourceGroupName
+                ResourceId          = $resource.ResourceId
+                DiagnosticSettingName = $diag.Name
+            }
+        }
+    } catch {
+        # Skip resources that don't support diagnostics
+    }
+}
+
+# Output the results
+$diagSettingsToLaw | Format-Table -AutoSize
+
+# (Optional) Export to CSV
+$diagSettingsToLaw | Export-Csv -Path "LAW-Diagnostic-Connections.csv" -NoTypeInformation
