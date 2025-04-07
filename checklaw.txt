@@ -1,0 +1,32 @@
+# Login if needed
+Connect-AzAccount
+
+# Set the subscription
+Set-AzContext -SubscriptionId "<your-subscription-id>"
+
+# Get all resources in the subscription
+$resources = Get-AzResource
+
+# Empty array to collect results
+$diagSettings = @()
+
+# Loop through all resources
+foreach ($resource in $resources) {
+    try {
+        $diag = Get-AzDiagnosticSetting -ResourceId $resource.ResourceId -ErrorAction SilentlyContinue
+        if ($diag) {
+            $diagSettings += [PSCustomObject]@{
+                ResourceName       = $resource.Name
+                ResourceType       = $resource.ResourceType
+                ResourceGroupName  = $resource.ResourceGroupName
+                WorkspaceId        = $diag.WorkspaceId
+                DiagnosticSettingName = $diag.Name
+            }
+        }
+    } catch {
+        # Ignore resources that don't support Diagnostic Settings
+    }
+}
+
+# Display results
+$diagSettings | Format-Table -AutoSize
